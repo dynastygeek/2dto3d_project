@@ -1,0 +1,154 @@
+# FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+# # Set working directory
+# WORKDIR /workspace
+
+# # Install system and Python build dependencies
+# RUN apt-get update && apt-get install -y \
+#     git ffmpeg libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev \
+#     build-essential python3 python3-pip python3-dev wget curl && \
+#     rm -rf /var/lib/apt/lists/*
+
+# # Install Miniconda
+# RUN curl -sLo miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+#     bash miniconda.sh -b -p /opt/conda && \
+#     rm miniconda.sh
+# ENV PATH="/opt/conda/bin:$PATH"
+
+# # Clone text2mesh
+# RUN git clone https://github.com/threedle/text2mesh.git
+# WORKDIR /workspace/text2mesh
+
+# # Remove Kaolin from YAML
+# RUN sed -i '/kaolin/d' text2mesh.yml
+
+# # Create conda env
+# RUN conda init bash && \
+#     conda env create -f text2mesh.yml
+
+# # Activate shell
+# SHELL ["/bin/bash", "-c"]
+
+# # Activate env and install Kaolin + NLP dependencies
+# # RUN source ~/.bashrc && \
+# #     conda activate text2mesh && \
+# #     pip install "cython>=0.29.37" && \
+# #     pip install git+https://github.com/NVIDIAGameWorks/kaolin.git && \
+# #     python -m spacy download en_core_web_sm && \
+# #     python -m nltk.downloader punkt averaged_perceptron_tagger
+
+# # Install packages inside the conda env
+# RUN conda run -n text2mesh pip install "cython>=0.29.37" && \
+#     conda run -n text2mesh pip install git+https://github.com/NVIDIAGameWorks/kaolin.git && \
+#     conda run -n text2mesh pip install spacy nltk && \
+#     conda run -n text2mesh python -m spacy download en_core_web_sm && \
+#     conda run -n text2mesh python -m nltk.downloader punkt averaged_perceptron_tagger
+
+
+# # Default command
+# ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "text2mesh", "bash"]
+
+
+
+
+# # Use Miniconda base image
+# FROM continuumio/miniconda3
+
+# # Set working directory
+# WORKDIR /workspace
+
+# # Install system dependencies
+# RUN apt-get update && apt-get install -y \
+#     git ffmpeg libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev \
+#     build-essential python3-dev cmake ninja-build libopenblas-dev libomp-dev && \
+#     apt-get clean
+
+# # Clone the text2mesh repo
+# RUN git clone https://github.com/threedle/text2mesh.git
+
+# # Switch to project directory
+# WORKDIR /workspace/text2mesh
+
+# # Remove kaolin from the environment file to avoid conflicts
+# RUN sed -i '/kaolin/d' text2mesh.yml
+
+# # Create the conda environment
+# RUN conda env create -f text2mesh.yml
+
+# # Use bash shell from now
+# SHELL ["/bin/bash", "-c"]
+
+# # Activate conda in bash
+# RUN echo "conda activate text2mesh" >> ~/.bashrc
+
+# # Preinstall compatible PyTorch (CUDA 11.8)
+# RUN conda run -n text2mesh pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+# # Install Kaolin manually (compatible with CUDA)
+# RUN conda run -n text2mesh pip install Cython>=0.29.37 && \
+#     conda run -n text2mesh pip install git+https://github.com/NVIDIAGameWorks/kaolin.git
+
+# # Download NLP models
+# RUN conda run -n text2mesh python -m spacy download en_core_web_sm && \
+#     conda run -n text2mesh python -m nltk.downloader punkt averaged_perceptron_tagger
+
+# # Set default command
+# ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "text2mesh", "bash"]
+
+
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
+
+# Set working directory
+WORKDIR /workspace
+
+# Install base dependencies
+RUN apt-get update && apt-get install -y \
+    git ffmpeg libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev \
+    build-essential python3 python3-pip python3-dev wget curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Miniconda
+RUN curl -sLo miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
+    bash miniconda.sh -b -p /opt/conda && \
+    rm miniconda.sh
+ENV PATH="/opt/conda/bin:$PATH"
+
+# Clone Text2Mesh repo
+RUN git clone https://github.com/threedle/text2mesh.git
+
+WORKDIR /workspace/text2mesh
+
+# Remove kaolin from environment YAML to install manually
+RUN sed -i '/kaolin/d' text2mesh.yml
+
+# Initialize Conda and create the environment
+RUN conda env create -f text2mesh.yml
+
+# Use bash for subsequent commands so Conda activates properly
+SHELL ["/bin/bash", "-c"]
+
+# Install other required Python packages inside the conda env
+# RUN conda run -n text2mesh pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
+#     conda run -n text2mesh pip install "cython>=0.29.37" "numpy==1.24.4" && \       
+#     conda run -n text2mesh pip install git+https://github.com/NVIDIAGameWorks/kaolin.git && \
+#     conda run -n text2mesh pip install spacy nltk && \
+#     conda run -n text2mesh python -m spacy download en_core_web_sm && \
+#     conda run -n text2mesh python -m nltk.downloader punkt averaged_perceptron_tagger
+
+# Install torch (CPU only), clip, kaolin and NLP deps
+RUN conda run -n text2mesh pip install torch==2.1.0+cpu torchvision==0.16.0+cpu torchaudio==2.1.0+cpu \
+    --index-url https://download.pytorch.org/whl/cpu && \
+    conda run -n text2mesh pip install git+https://github.com/openai/CLIP.git && \
+    conda run -n text2mesh pip install "cython>=0.29.37" "numpy==1.24.4" && \
+    conda run -n text2mesh pip install git+https://github.com/NVIDIAGameWorks/kaolin.git && \
+    conda run -n text2mesh pip install spacy nltk && \
+    conda run -n text2mesh python -m spacy download en_core_web_sm && \
+    conda run -n text2mesh python -m nltk.downloader punkt averaged_perceptron_tagger
+
+
+# Set default conda environment
+ENV CONDA_DEFAULT_ENV=text2mesh
+ENV PATH="/opt/conda/envs/text2mesh/bin:$PATH"
+
+# Default command (can be overridden)
+CMD ["conda", "run", "--no-capture-output", "-n", "text2mesh", "python"]
